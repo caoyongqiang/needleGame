@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="edge" />
+    <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black">
+    <title>不要停</title>
+</head>
+<body>
+<div class="layoutRoot">
+    <div class="game">
+        <canvas id="gameStage"></canvas>
+    </div>
+</div>
+<script type="text/javascript" src=""></script>
+<script type="text/javascript">
+    var canvas = document.getElementById('gameStage');
+    if (canvas.getContext) {
+        var ctx = canvas.getContext('2d');
+        // ctx.arc(x, y, radius, startAngle, endAngle, anticlockwise);
+        ctx.arc(30, 30, 10, 0, 2*Math.PI, true);
+        ctx.stroke();
+    }
+</script>
+</body>
+</html>

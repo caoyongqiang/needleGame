@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="edge" />
+    <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black">
+    <title>不要停</title>
+    <style type="text/css">
+        #curLevel {
+            color: red;
+        }
+        #bullet_num {
+            color: red;
+        }
+    </style>
+</head>
+<body>
+<header>
+<p>当前关：<span id="curLevel"></span>&nbsp;&nbsp;&nbsp;本关还剩个<span id="bullet_num"></span>个发射小球</p>
+</header>
+<div class="layoutRoot">
+    <div class="game">
+        <canvas id="gameStage"></canvas>
+    </div>
+</div>
+<script type="text/javascript">
+    var canvas = document.getElementById('gameStage');
+    canvas.height = CANVAS_HEIGHT = (window.innerHeight > 0) ? window.innerHeight : screen.height;
+    canvas.width = CANVAS_WIDTH = (window.innerWidth > 0) ? window.innerWidth : screen.width;
+
+    var CENTER_CIRCLE_X = (CANVAS_WIDTH / 2), // 中心大圆原点X坐标
+        CENTER_CIRCLE_Y = (CANVAS_HEIGHT / 3), // 中心大圆原点X坐标
+        CENTER_CIRCLE_RADIUS = (CANVAS_WIDTH * 0.05), // 中心大圆半径
+
+        ROTATION_CIRCLE_RADIUS = CENTER_CIRCLE_RADIUS * 0.5, // 旋转小圆半径
+        LINE_DIS = Math.min(CENTER_CIRCLE_X, CENTER_CIRCLE_Y)-3*ROTATION_CIRCLE_RADIUS; // 旋转线段长度
+        ROTATION_ANGLE = 0.03, // 每次旋转角度
+        ROTATE_SPEED = 100, // 旋转速度默认值
+
+        LEVEL = [[3, 100, 6, '#FF8247', '#FF3030'], [4, 50, 5, '#E066FF', '#DB7093'], [5, 20, 7, '#B03060', '#B22222']];
+
+    function Circle(x, y, r, fillStyle, strokeStyle) {
+        this.x = x;
+        this.y = y;
+        this.r = r;
+        this.fillStyle = fillStyle || '#FF8247';
+        this.strokeStyle = strokeStyle || '#FF3030';
+    };
+
+    Circle.prototype = {
+            draw: function() {
+                ctx.beginPath();
+                ctx.fillStyle = this.fillStyle;
+                ctx.arc(this.x, this.y, this.r, 0, 2*Math.PI, true);
+                ctx.fill();
+            }
+        }
+
+    function CenterCircle(x, y, r, fillStyle, strokeStyle) {
+        CenterCircle.parent.call(this, x, y, r, fillStyle, strokeStyle);
+    };
+
+    CenterCircle.prototype.draw = function() {
+        CenterCircle.parent.prototype.draw.call(this);
+    };
+
+    function RotationCircle(x, y, r, fillStyle, strokeStyle) {
+        RotationCircle.parent.call(this, x, y, r, fillStyle, strokeStyle);
+    };
+
+    RotationCircle.prototype.draw = function() {
+        RotationCircle.parent.prototype.draw.call(this);
+    };
+
+    RotationCircle.prototype.resetPosition = function (){
+        this.vx = LINE_DIS * Math.sin(this.angle);
+        this.vy = LINE_DIS * Math.cos(this.angle);
+    };
+
+    RotationCircle.prototype.update = function(rs) {
+        ctx.save();
+        ctx.translate(CENTER_CIRCLE_X, CENTER_CIRCLE_Y);
+        ctx.rotate(rs);
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.lineTo(0, LINE_DIS);
+        ctx.strokeStyle = this.strokeStyle;
+        ctx.stroke();
+        ctx.beginPath();
+        this.draw();
+        this.resetPosition();
+        ctx.restore();
+    };
+
+    function extendClass(parentClass, sonClass) {
+        sonClass.parent = parentClass;
+        sonClass.base = {};
+        parentClass.call(sonClass.base);
+    };
+
+    // 初始化旋转小圆
+    function initRotationCircle() {
+        ctx.save();
+        ctx.translate(CENTER_CIRCLE_X, CENTER_CIRCLE_Y);
+        extendClass(Circle, RotationCircle);
+        var curLevelSetting = LEVEL[curLevel],
+            fillStyle = curLevelSetting[3],
+            strokeStyle = curLevelSetting[4];
+        ROTATE_SPEED = curLevelSetting[1];
+        for(var i=0,l=curLevelSetting[0]; i<l; i++) {
+            ctx.rotate(2*Math.PI/l*i);
+            ctx.beginPath();
+            var rotationCircle = new RotationCircle(0, LINE_DIS, ROTATION_CIRCLE_RADIUS, fillStyle, strokeStyle);
+            rotationCircle.angle = 2*Math.PI/l*i;
+            rotationCircle.vx = rotationCircle.x;
+            rotationCircle.vy = rotationCircle.y;
+            rotationCirclesArr.push(rotationCircle);
+            rotationCircle.draw();
+            ctx.beginPath();
+            ctx.moveTo(0, 0);
+            ctx.lineTo(0, LINE_DIS);
+            ctx.strokeStyle = rotationCircle.strokeStyle;
+            ctx.stroke();
+        }
+        ctx.restore();
+        document.getElementById('curLevel').innerText = curLevel+1;
+    };
+
+    function initBulletCircles() {
+        ctx.save();
+        ctx.translate(CENTER_CIRCLE_X, CENTER_CIRCLE_Y);
+        var curLevelSetting = LEVEL[curLevel],
+            len = curLevelSetting[2] || 6,
+            fillStyle = curLevelSetting[3],
+            strokeStyle = curLevelSetting[4];
+        bulletCirclesArr = []; // 定义全局变量
+        for(var i=0; i<len; i++) {
+            var bulletCircle = new RotationCircle(0, LINE_DIS+ROTATION_CIRCLE_RADIUS*4*(i+1), ROTATION_CIRCLE_RADIUS, fillStyle, strokeStyle);
+            bulletCircle.draw();
+            bulletCirclesArr.push(bulletCircle);
+        }
+        ctx.restore();
+        document.getElementById('bullet_num').innerText = bulletCirclesArr.length;
+    };
+
+    // 在中心大球上添加一个旋转小球
+    function addRotationCircle() {
+        ctx.save();
+        ctx.translate(CENTER_CIRCLE_X, CENTER_CIRCLE_Y);
+        var curLevelSetting = LEVEL[curLevel],
+            fillStyle = curLevelSetting[3],
+            strokeStyle = curLevelSetting[4];
+        var aRotationCircle = new RotationCircle(0, LINE_DIS, ROTATION_CIRCLE_RADIUS, fillStyle, strokeStyle);
+        aRotationCircle.angle = 0;
+        aRotationCircle.vx = aRotationCircle.x;
+        aRotationCircle.vy = aRotationCircle.y;
+        rotationCirclesArr.push(aRotationCircle);
+        aRotationCircle.draw();
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.lineTo(0, LINE_DIS);
+        ctx.strokeStyle = aRotationCircle.strokeStyle;
+        ctx.stroke();
+        ctx.restore();
+    };
+
+    // 减少一个发射小球
+    function delBulletCircle() {
+        bulletCirclesArr.pop();
+        // 画出发射小球
+        ctx.clearRect(0, CENTER_CIRCLE_Y+LINE_DIS+2*ROTATION_CIRCLE_RADIUS, CANVAS_WIDTH, CANVAS_HEIGHT);
+        ctx.save();
+        ctx.translate(CENTER_CIRCLE_X, CENTER_CIRCLE_Y);
+        for(var i=0,len=bulletCirclesArr.length; i<len; i++) {
+            bulletCirclesArr[i].draw();
+        };
+        ctx.restore();
+    };
+
+    // 检测小球之间是否有碰撞
+    function checkImpact() {
+        var toCheckRC = rotationCirclesArr[rotationCirclesArr.length-1];
+        for(var i=0,l=rotationCirclesArr.length-1; i<l; i++) {
+            var rcItem = rotationCirclesArr[i];
+            if ((toCheckRC.vx-rcItem.vx)*(toCheckRC.vx-rcItem.vx) + (toCheckRC.vy-rcItem.vy)*(toCheckRC.vy-rcItem.vy) < 4*ROTATION_CIRCLE_RADIUS*ROTATION_CIRCLE_RADIUS) {
+                setTimeout(function(){
+                    alert('我只想说在座的各位都是垃圾^_^');
+                    rotationCirclesArr.length = 0;
+                    initRotationCircle();
+                    initBulletCircles();
+                    clearInterval(intervalId);
+                    timer(LEVEL[curLevel][1]);
+                }, 100);
+                return;
+            }
+        };
+
+        // 进入下一关
+        if (bulletCirclesArr.length === 0) {
+            clearInterval(intervalId);
+            if (++curLevel == LEVEL.length) {
+                var msg = '您已经通关了，请从第1关重新开始';
+                curLevel = 0;
+            } else {
+                var msg = '恭喜您进入下一关';
+            }
+            setTimeout(function() {
+                alert(msg);
+                // 旋转小球置空
+                rotationCirclesArr.length = 0;
+                initRotationCircle();
+                initBulletCircles();
+                timer(LEVEL[curLevel][1]);
+            }, 100)
+        }
+    };
+
+    // 程序入口
+    if (canvas.getContext) {
+        timer(LEVEL[0][1]);
+        var rotationCirclesArr = [];
+        var curLevel = 0;
+        var ctx = canvas.getContext('2d');
+        ctx.save();
+        ctx.translate(CENTER_CIRCLE_X, CENTER_CIRCLE_Y);
+        extendClass(Circle, CenterCircle);
+        var centerCircle = new CenterCircle(0, 0, CENTER_CIRCLE_RADIUS, LEVEL[curLevel][3], LEVEL[curLevel][4]);
+        centerCircle.draw();
+        ctx.restore();
+        initRotationCircle();
+        initBulletCircles();
+    }
+
+    function timer(time) {
+        intervalId = setInterval(function() {
+            ctx.clearRect(0, 0, CANVAS_WIDTH, CENTER_CIRCLE_Y+LINE_DIS+2*ROTATION_CIRCLE_RADIUS);
+
+            // 更新旋转小球
+            for(var i=0,l=rotationCirclesArr.length; i<l; i++) {
+                rotationCirclesArr[i].update(rotationCirclesArr[i].angle += ROTATION_ANGLE);
+            }
+
+            // 画出发射小球和中心大球
+            ctx.save();
+            ctx.translate(CENTER_CIRCLE_X, CENTER_CIRCLE_Y);
+            var curLevelSetting = LEVEL[curLevel];
+            centerCircle.fillStyle = curLevelSetting[4];
+            centerCircle.draw();
+            for(var i=0,len=bulletCirclesArr.length; i<len; i++) {
+                bulletCirclesArr[i].draw();
+            };
+            ctx.restore();
+        }, time )
+    };
+    var touch = document.getElementsByTagName('body')[0];
+    touch.onclick = function() {
+        delBulletCircle();
+        addRotationCircle();
+        checkImpact();
+        document.getElementById('bullet_num').innerText = bulletCirclesArr.length;
+    };
+
+</script>
+</body>
+</html>
